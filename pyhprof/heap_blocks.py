@@ -1,27 +1,25 @@
-
 class BaseHeapDumpBlock(object):
-
     def __init__(self, id):
         self.id = id
 
-class BaseOnlyIdHeapDumpBlock(BaseHeapDumpBlock):
 
+class BaseOnlyIdHeapDumpBlock(BaseHeapDumpBlock):
     @classmethod
     def parse(cls, p):
         return cls(p.read_id())
 
-class BaseThreadHeapDumpBlock(BaseHeapDumpBlock):
 
+class BaseThreadHeapDumpBlock(BaseHeapDumpBlock):
     def __init__(self, id, thread_serial_number):
-        super(BaseThreadFrameHeadDumpBlock, self).__init__(id)
+        super(BaseThreadHeapDumpBlock, self).__init__(id)
         self.thread_serial_number = thread_serial_number
 
     @classmethod
     def parse(cls, p):
         return cls(p.read_id(), p.i4())
 
-class BaseThreadFrameHeadDumpBlock(BaseThreadHeapDumpBlock):
 
+class BaseThreadFrameHeadDumpBlock(BaseThreadHeapDumpBlock):
     def __init__(self, id, thread_serial_number, frame_number):
         super(BaseThreadFrameHeadDumpBlock, self).__init__(id, thread_serial_number)
         self.frame_number = frame_number
@@ -30,12 +28,12 @@ class BaseThreadFrameHeadDumpBlock(BaseThreadHeapDumpBlock):
     def parse(cls, p):
         return cls(p.read_id(), p.i4(), p.i4())
 
-class RootUnkown(BaseOnlyIdHeapDumpBlock):
 
+class RootUnknown(BaseOnlyIdHeapDumpBlock):
     pass
 
-class RootJniGlobal(BaseHeapDumpBlock):
 
+class RootJniGlobal(BaseHeapDumpBlock):
     def __init__(self, id, jni_global_ref):
         super(RootJniGlobal, self).__init__(id)
         self.jni_global_ref = jni_global_ref
@@ -44,42 +42,42 @@ class RootJniGlobal(BaseHeapDumpBlock):
     def prase(cls, p):
         return cls(p.read_id(), p.read_id())
 
-class RootJniLocal(BaseThreadFrameHeadDumpBlock):
 
+class RootJniLocal(BaseThreadFrameHeadDumpBlock):
     pass
+
 
 class RootJavaFrame(BaseThreadFrameHeadDumpBlock):
-
     pass
+
 
 class RootNativeStack(BaseThreadHeapDumpBlock):
-
     pass
+
 
 class RootStickyClass(BaseOnlyIdHeapDumpBlock):
-
     pass
+
 
 class RootThreadBlock(BaseThreadHeapDumpBlock):
-
     pass
+
 
 class RootMonitorUsed(BaseOnlyIdHeapDumpBlock):
-
     pass
 
-class RootThreadObject(BaseThreadHeapDumpBlock):
 
+class RootThreadObject(BaseThreadHeapDumpBlock):
     def __init__(self, id, thread_serial_number, stack_trace_serial_number):
-        super(BaseThreadFrameHeadDumpBlock, self).__init__(id, thread_serial_number)
+        super(RootThreadObject, self).__init__(id, thread_serial_number)
         self.stack_trace_serial_number = stack_trace_serial_number
 
     @classmethod
     def parse(cls, p):
         return cls(p.read_id(), p.i4(), p.i4())
 
-class ClassDump(BaseHeapDumpBlock):
 
+class ClassDump(BaseHeapDumpBlock):
     def __init__(self,
                  id,
                  stack_trace_serial_number,
@@ -111,7 +109,8 @@ class ClassDump(BaseHeapDumpBlock):
         constants = [cls.read_constant(p) for _ in xrange(p.i2())]
         static_fields = [cls.read_static_field(p) for _ in xrange(p.i2())]
         instance_fields = [cls.read_instance_field(p) for _ in xrange(p.i2())]
-        return cls(id, stack_trace_serial_number, super_class_id, class_loader_id, signers_object_id, protection_domain_object_id,
+        return cls(id, stack_trace_serial_number, super_class_id, class_loader_id, signers_object_id,
+                   protection_domain_object_id,
                    reserved1, reserved2, instance_size, constants, static_fields, instance_fields)
 
     @classmethod
@@ -134,8 +133,8 @@ class ClassDump(BaseHeapDumpBlock):
         tp = p.read_value_type()
         return [name_id, tp]
 
-class InstanceDump(BaseHeapDumpBlock):
 
+class InstanceDump(BaseHeapDumpBlock):
     def __init__(self, id, stack_trace_serial_number, class_object_id, bytes):
         self.id = id
         self.stack_trace_serial_number = stack_trace_serial_number
@@ -151,8 +150,8 @@ class InstanceDump(BaseHeapDumpBlock):
         bytes = p.read(n_bytes)
         return cls(id, stack_trace_serial_number, class_object_id, bytes)
 
-class ObjectArrayDump(BaseHeapDumpBlock):
 
+class ObjectArrayDump(BaseHeapDumpBlock):
     def __init__(self, id, stack_trace_serial_number, array_class_object_id, elements):
         self.id = id
         self.stack_trace_serial_number = stack_trace_serial_number
@@ -168,8 +167,8 @@ class ObjectArrayDump(BaseHeapDumpBlock):
         elements = [p.read_id() for _ in xrange(n_elements)]
         return cls(id, stack_trace_serial_number, array_class_object_id, elements)
 
-class PrimitiveArrayDump(BaseHeapDumpBlock):
 
+class PrimitiveArrayDump(BaseHeapDumpBlock):
     def __init__(self, id, stack_trace_serial_number, element_type, size):
         self.id = id
         self.stack_trace_serial_number = stack_trace_serial_number
@@ -185,18 +184,19 @@ class PrimitiveArrayDump(BaseHeapDumpBlock):
         p.seek(p.type_size(element_type) * size)
         return cls(id, stack_trace_serial_number, element_type, size)
 
+
 HEAP_BLOCK_CLASSES_BY_TAG = {
-    'ROOT_UNKNOWN' : RootUnkown,
-    'ROOT_JNI_GLOBAL' : RootJniGlobal,
-    'ROOT_JNI_LOCAL' : RootJniLocal,
-    'ROOT_JAVA_FRAME' : RootJavaFrame,
-    'ROOT_NATIVE_STACK' : RootNativeStack,
-    'ROOT_STICKY_CLASS' : RootStickyClass,
-    'ROOT_THREAD_BLOCK' : RootThreadBlock,
-    'ROOT_MONITOR_USED' : RootMonitorUsed,
-    'ROOT_THREAD_OBJECT' : RootThreadObject,
-    'CLASS_DUMP' : ClassDump,
-    'INSTANCE_DUMP' : InstanceDump,
-    'OBJECT_ARRAY_DUMP' : ObjectArrayDump,
-    'PRIMITIVE_ARRAY_DUMP' : PrimitiveArrayDump
+    'ROOT_UNKNOWN': RootUnknown,
+    'ROOT_JNI_GLOBAL': RootJniGlobal,
+    'ROOT_JNI_LOCAL': RootJniLocal,
+    'ROOT_JAVA_FRAME': RootJavaFrame,
+    'ROOT_NATIVE_STACK': RootNativeStack,
+    'ROOT_STICKY_CLASS': RootStickyClass,
+    'ROOT_THREAD_BLOCK': RootThreadBlock,
+    'ROOT_MONITOR_USED': RootMonitorUsed,
+    'ROOT_THREAD_OBJECT': RootThreadObject,
+    'CLASS_DUMP': ClassDump,
+    'INSTANCE_DUMP': InstanceDump,
+    'OBJECT_ARRAY_DUMP': ObjectArrayDump,
+    'PRIMITIVE_ARRAY_DUMP': PrimitiveArrayDump
 }
