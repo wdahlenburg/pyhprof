@@ -1,5 +1,8 @@
 
-from contextlib import contextmanager 
+import time
+from contextlib import contextmanager
+
+from .constants import TAGS
 
 class BaseBlock(object):
     

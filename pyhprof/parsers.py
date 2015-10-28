@@ -1,14 +1,16 @@
+'''Parsers for the contents of a binary Java hprof file.
+Specification in: https://java.net/downloads/heap-snapshot/hprof-binary-format.html
+'''
 
 from __future__ import division
 
 import sys
 import os
 import struct
-import time
 from contextlib import contextmanager 
 
 from .constants import TAGS, HEAP_DUMP_SUB_TAGS, OBJECT_TYPES, TYPE_SIZES
-from .blocks import BLOCK_CLASSES_BY_TAG
+from .blocks import BLOCK_CLASSES_BY_TAG, GenericBlock
 from .heap_blocks import HEAP_BLOCK_CLASSES_BY_TAG
 
 
