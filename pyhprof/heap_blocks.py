@@ -136,7 +136,7 @@ class ClassDump(BaseHeapDumpBlock):
 
 class InstanceDump(BaseHeapDumpBlock):
     def __init__(self, id, stack_trace_serial_number, class_object_id, bytes):
-        self.id = id
+        super(InstanceDump, self).__init__(id)
         self.stack_trace_serial_number = stack_trace_serial_number
         self.class_object_id = class_object_id
         self.bytes = bytes
@@ -153,7 +153,7 @@ class InstanceDump(BaseHeapDumpBlock):
 
 class ObjectArrayDump(BaseHeapDumpBlock):
     def __init__(self, id, stack_trace_serial_number, array_class_object_id, elements):
-        self.id = id
+        super(ObjectArrayDump, self).__init__(id)
         self.stack_trace_serial_number = stack_trace_serial_number
         self.array_class_object_id = array_class_object_id
         self.elements = elements
@@ -170,7 +170,7 @@ class ObjectArrayDump(BaseHeapDumpBlock):
 
 class PrimitiveArrayDump(BaseHeapDumpBlock):
     def __init__(self, id, stack_trace_serial_number, element_type, size):
-        self.id = id
+        super(PrimitiveArrayDump, self).__init__(id)
         self.stack_trace_serial_number = stack_trace_serial_number
         self.element_type = element_type
         self.size = size
