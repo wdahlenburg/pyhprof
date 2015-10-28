@@ -101,7 +101,10 @@ class BaseParser(object):
         
     def __iter__(self):
         while True:
-            b = self.read_next_block()
+            try:
+                b = self.read_next_block()
+            except EOFError:
+                break
             if b is None:
                 break
             yield b
@@ -125,10 +128,7 @@ class HProfParser(BaseParser):
         self.start_time = self.i8()
         
     def read_next_block(self):
-        tag = self.u1()
-        if not tag:
-            return None
-        tag = ord(tag)
+        tag = ord(self.u1())
         tag_name = TAGS.get(tag, 'UNKOWN')
         record_time = self.i4()
         length = self.i4()
@@ -148,22 +148,25 @@ class HProfParser(BaseParser):
 
 class HeapDumpParser(BaseParser):
     
-    def __init__(self, f, id_size, length):
+    def __init__(self, f, id_size, length=None):
         super(HeapDumpParser, self).__init__(f)
         self.set_id_size(id_size)
         self.length = length
         self.position = 0
         
+    def check_position_in_bound(self):
+        assert self.length is None or self.position <= self.length
+
     def read(self, n):
         content = super(HeapDumpParser, self).read(n)
         self.position += n
-        assert self.position <= self.length
+        self.check_position_in_bound()
         return content
         
     def seek(self, n):
         super(HeapDumpParser, self).seek(n)
         self.position += n
-        assert self.position <= self.length       
+        self.check_position_in_bound()
        
     def read_next_block(self):
         if self.position == self.length:
