@@ -54,3 +54,5 @@ TYPE_SIZES = {
     'INT': 4,
     'LONG': 8
 }
+
+ARRAY_OVERHEAD = 4
