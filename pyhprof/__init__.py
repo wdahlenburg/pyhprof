@@ -1,3 +1,4 @@
-from pyhprof import *
-from pyhprof import __doc__
-from pyhprof import __all__
+'''Library for parsing and analyzing Java hprof files 
+'''
+
+from .parsers import HProfParser, HeapDumpParser
