@@ -6,8 +6,8 @@ from contextlib import contextmanager
 
 from .constants import TAGS
 
-class BaseBlock(object):
 
+class BaseBlock(object):
     def __init__(self, tag, parser, record_time, start, length):
         self.tag = tag
         self.parser = parser
@@ -24,15 +24,15 @@ class BaseBlock(object):
         return self.parser.start_time / 1e3 + self.record_time / 1e6
 
     def __str__(self):
-        return '%s @ %s of length %d' % (self.tag_name, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(self.timestamp)), self.length)
+        return '%s @ %s of length %d' % (
+        self.tag_name, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(self.timestamp)), self.length)
 
 
 class GenericBlock(BaseBlock):
-
     pass
 
-class StringBlock(BaseBlock):
 
+class StringBlock(BaseBlock):
     _id = _contents = None
 
     def read_contents(self):
@@ -83,7 +83,6 @@ class LoadClass(BaseBlock):
 
 
 class HeapDump(BaseBlock):
-
     @contextmanager
     def heap_parser(self):
         from .parsers import HeapDumpParser
@@ -94,6 +93,7 @@ class HeapDump(BaseBlock):
         with heap_parser(self) as hp:
             for b in hp:
                 yield b
+
 
 BLOCK_CLASSES_BY_TAG = {
     'STRING': StringBlock,

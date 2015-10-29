@@ -4,7 +4,6 @@ Specification in: https://java.net/downloads/heap-snapshot/hprof-binary-format.h
 
 from __future__ import division
 
-import sys
 import os
 import struct
 from contextlib import contextmanager
