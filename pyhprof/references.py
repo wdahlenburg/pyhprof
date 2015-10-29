@@ -11,7 +11,6 @@ from .parsers import HProfParser, HeapDumpParser
 from .heap_blocks import ClassDump, InstanceDump, ObjectArrayDump, PrimitiveArrayDump
 
 
-
 # TODO: Make this code worth with either id sizes of 4 or 8
 ID_SIZE = 8
 
@@ -44,6 +43,9 @@ class BaseReference(object):
 
 
 class JavaClass(object):
+
+    parent_class = None
+
     def __init__(self, name, parent_class_id, instance_fields):
         self.name = name
         self.parent_class_id = parent_class_id
@@ -51,6 +53,9 @@ class JavaClass(object):
 
     def __str__(self):
         return 'Class<%s>' % self.name
+
+    def simple_name(self):
+        return self.name.rsplit('/', 1)[-1]
 
 
 class InstanceReference(BaseReference):
@@ -75,6 +80,9 @@ class InstanceReference(BaseReference):
     def __str__(self):
         return 'Instance<%s>' % self.cls.name
 
+    def simple_name(self):
+        return self.cls.simple_name()
+
 
 class ObjectArrayReference(BaseReference):
     def __init__(self, elements):
@@ -85,6 +93,10 @@ class ObjectArrayReference(BaseReference):
 
     def __str__(self):
         return 'Object Array Length %d' % len(self.children)
+
+    def simple_name(self):
+        child_names = {c.simple_name() for c in self.children.values() if c is not None}
+        return 'Array{%s} len=%d' % (','.join(sorted(child_names)), len(self.children))
 
 
 class PrimitiveArrayReference(BaseReference):
@@ -99,6 +111,9 @@ class PrimitiveArrayReference(BaseReference):
     def __str__(self):
         return '%s Array Length %d' % (self.element_type, self.number_of_elements)
 
+    def simple_name(self):
+        return 'PArray{%s} len=%d' % (self.element_type, self.number_of_elements)
+
 
 class ReferenceBuilder(object):
     def __init__(self, f):
@@ -108,9 +123,9 @@ class ReferenceBuilder(object):
         self.classes = {}
         self.references = {}
 
-    def build(self):
+    def build(self, mx=None):
         heap_dump = self.read_hprof()
-        self.read_references(heap_dump)
+        self.read_references(heap_dump, mx)
         for c in self.classes.values():
             c.parent_class = self.references.get(c.parent_class_id)
         for r in self.references.values():
@@ -134,13 +149,15 @@ class ReferenceBuilder(object):
                 self.class_name_ids[b.class_id] = b.class_name_id
         assert 0
 
-    def read_references(self, heap_dump):
+    def read_references(self, heap_dump, mx=None):
         self.f.seek(heap_dump.start)
         p = HeapDumpParser(self.f, ID_SIZE)
 
         for i, el in enumerate(p):
             if not i % 200000:
                 print i
+            if mx is not None and i > mx:
+                break
             if isinstance(el, ClassDump):
                 self.classes[el.id] = JavaClass(self.strings[self.class_name_ids[el.id]],
                                                 el.super_class_id,
