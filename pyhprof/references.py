@@ -134,20 +134,14 @@ class ReferenceBuilder(object):
 
     def read_hprof(self):
         p = HProfParser(self.f)
-        while True:
-            try:
-                b = p.read_next_block()
-            except EOFError:
-                break
-            if not b:
-                break
+        for b in p:
             if b.tag_name == 'HEAP_DUMP':
                 return b
             elif b.tag_name == 'STRING':
                 self.strings[b.id] = b.contents
             elif b.tag_name == 'LOAD_CLASS':
                 self.class_name_ids[b.class_id] = b.class_name_id
-        assert 0
+        raise RuntimeError("No HEAP_DUMP block")
 
     def read_references(self, heap_dump, mx=None):
         self.f.seek(heap_dump.start)
