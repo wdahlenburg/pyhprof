@@ -1,6 +1,8 @@
 """Create graphviz specification for rendering object graph
 """
 
+from __future__ import division
+
 from collections import Counter
 
 from .references import ObjectArrayReference, InstanceReference
@@ -99,8 +101,16 @@ class ReferenceGraphBuilder(object):
     def make_arc(self, parent, child, label):
         self.lines.append('%d -> %d [label="%s"];' % (self.ref_name(parent), self.ref_name(child), label))
 
-    def make_node(self, r, label, shape='oval'):
-        self.lines.append('%d [label="%s" shape=%s];' % (self.ref_name(r), label, shape))
+    def make_node(self, node, label, shape='oval'):
+        f = self.get_size(node) / self.get_size(self.root_reference)
+        r = 255 * f
+        g = 255 * (1 - f)
+        b = 20
+        a = 0xff * 0.5
+        color = '#%02X%02X%02X%02X' % (r, g, b, a)
+        self.lines.append('%d [label="%s (%s)" shape=%s style=filled color="%s"];' % (self.ref_name(node), label,
+                                                                                      self.mem_str(self.get_size(node)),
+                                                                                      shape, color))
 
     def process_collection(self, r):
         elements = self.collection_element_accessors[r.cls.name](r)
@@ -118,14 +128,14 @@ class ReferenceGraphBuilder(object):
         else:
             name = r.simple_name()
         name = self.split_name(name)
-        self.make_node(r, '%s (%s)' % (name, self.mem_str(self.get_size(r))), shape='box')
+        self.make_node(r, name, shape='box')
 
     def rec(self, r, depth, parent=None, parent_label=None):
         if r is None or depth > self.max_depth or self.get_size(r) < self.min_size:
             return
 
         if parent is not None:
-            self.make_arc(parent, r, parent_label)
+            self.make_arc(parent, r, self.split_name(parent_label))
 
         if r in self.visited:
             return
@@ -142,7 +152,7 @@ class ReferenceGraphBuilder(object):
         else:
             name = name.rsplit('$', 1)[-1]
         name = self.split_name(name)
-        self.make_node(r, '%s (%s)' % (name, self.mem_str(self.get_size(r))))
+        self.make_node(r, name)
 
         if not isinstance(r, ObjectArrayReference) and depth < self.max_depth:
             for n, c in sorted(r.children.iteritems()):
