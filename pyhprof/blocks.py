@@ -1,5 +1,5 @@
-'''Object model for elements of a Java hprof file
-'''
+"""Object model for elements of a Java hprof file
+"""
 
 import time
 from contextlib import contextmanager

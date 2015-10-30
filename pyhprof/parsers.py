@@ -1,6 +1,6 @@
-'''Parsers for the contents of a binary Java hprof file.
+"""Parsers for the contents of a binary Java hprof file.
 Specification in: https://java.net/downloads/heap-snapshot/hprof-binary-format.html
-'''
+"""
 
 from __future__ import division
 
