@@ -16,9 +16,9 @@ ID_SIZE = 8
 
 
 class BaseReference(object):
-    def __init__(self, base_size, children={}):
+    def __init__(self, base_size, children=None):
         self.base_size = base_size
-        self.children = children
+        self.children = children or {}
 
     def resolve_children(self, references):
         for k, c in self.children.iteritems():
