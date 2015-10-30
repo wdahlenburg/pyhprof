@@ -24,7 +24,7 @@ class BaseReference(object):
         for k, c in self.children.iteritems():
             self.children[k] = references.get(c)
 
-    def bfs_children(self):
+    def bfs_transverse(self):
         seen = {self}
         queue = deque([self])
         while queue:
@@ -36,10 +36,10 @@ class BaseReference(object):
                     queue.append(child)
 
     def count_deep_children(self):
-        return sum(1 for _ in self.bfs_children())
+        return sum(1 for _ in self.bfs_transverse())
 
     def compute_deep_size(self):
-        return sum(n.base_size for n in self.bfs_children())
+        return sum(n.base_size for n in self.bfs_transverse())
 
 
 class JavaClass(object):
