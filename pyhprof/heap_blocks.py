@@ -1,3 +1,5 @@
+import pdb
+
 class BaseHeapDumpBlock(object):
     def __init__(self, id):
         self.id = id
@@ -39,7 +41,7 @@ class RootJniGlobal(BaseHeapDumpBlock):
         self.jni_global_ref = jni_global_ref
 
     @classmethod
-    def prase(cls, p):
+    def parse(cls, p):
         return cls(p.read_id(), p.read_id())
 
 
@@ -109,6 +111,11 @@ class ClassDump(BaseHeapDumpBlock):
         constants = [cls.read_constant(p) for _ in xrange(p.i2())]
         static_fields = [cls.read_static_field(p) for _ in xrange(p.i2())]
         instance_fields = [cls.read_instance_field(p) for _ in xrange(p.i2())]
+
+        if id == 3940593480 or id == 4019559632:
+            pdb.set_trace()
+            print("Block found")
+
         return cls(id, stack_trace_serial_number, super_class_id, class_loader_id, signers_object_id,
                    protection_domain_object_id,
                    reserved1, reserved2, instance_size, constants, static_fields, instance_fields)
@@ -118,6 +125,9 @@ class ClassDump(BaseHeapDumpBlock):
         pool_index = p.i2()
         tp = p.read_value_type()
         value = p.read_value(tp)
+        if value == 3940593480 or value == 4019559632:
+            pdb.set_trace()
+            print("Block found")
         return [pool_index, tp, value]
 
     @classmethod
@@ -125,6 +135,9 @@ class ClassDump(BaseHeapDumpBlock):
         name_id = p.read_id()
         tp = p.read_value_type()
         value = p.read_value(tp)
+        if value == 3940593480 or value == 4019559632:
+            pdb.set_trace()
+            print("Block found")
         return [name_id, tp, value]
 
     @classmethod
@@ -164,16 +177,30 @@ class ObjectArrayDump(BaseHeapDumpBlock):
         stack_trace_serial_number = p.i4()
         n_elements = p.i4()
         array_class_object_id = p.read_id()
-        elements = [p.read_id() for _ in xrange(n_elements)]
+        elements = []
+        for i in range(n_elements):
+            tid = p.read_id()
+            if tid == 3940593480 or tid == 4019559632:
+                pdb.set_trace()
+                print("Block found")
+            elements.append(tid)
+
+        # elements = [p.read_id() for _ in xrange(n_elements)]
+        # for i in elements:
+        #     if id == 3940593480:
+        #         pdb.set_trace()
+        #         print("Block found")
         return cls(id, stack_trace_serial_number, array_class_object_id, elements)
 
 
 class PrimitiveArrayDump(BaseHeapDumpBlock):
-    def __init__(self, id, stack_trace_serial_number, element_type, size):
+    def __init__(self, id, stack_trace_serial_number, element_type, size, data):
         super(PrimitiveArrayDump, self).__init__(id)
         self.stack_trace_serial_number = stack_trace_serial_number
         self.element_type = element_type
         self.size = size
+        self.data = data
+
 
     @classmethod
     def parse(cls, p):
@@ -181,8 +208,10 @@ class PrimitiveArrayDump(BaseHeapDumpBlock):
         stack_trace_serial_number = p.i4()
         size = p.i4()
         element_type = p.read_value_type()
-        p.seek(p.type_size(element_type) * size)
-        return cls(id, stack_trace_serial_number, element_type, size)
+        data = p.read(p.type_size(element_type) * size)
+        # By reading the data you can get the same effect, and also get the value
+        # p.seek(p.type_size(element_type) * size)
+        return cls(id, stack_trace_serial_number, element_type, size, data)
 
 
 HEAP_BLOCK_CLASSES_BY_TAG = {

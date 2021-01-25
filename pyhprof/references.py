@@ -5,6 +5,9 @@ size of objects they reference.
 
 import struct
 from collections import deque
+import pdb
+from hexdump import hexdump
+import re
 
 from .constants import ARRAY_OVERHEAD, TYPE_SIZES
 from .parsers import HProfParser, HeapDumpParser
@@ -46,10 +49,13 @@ class JavaClass(object):
 
     parent_class = None
 
-    def __init__(self, name, parent_class_id, instance_fields):
+    def __init__(self, id, name, parent_class_id, instance_fields, static_fields, constants):
+        self.id = id
         self.name = name
         self.parent_class_id = parent_class_id
         self.instance_fields = instance_fields
+        self.static_fields = static_fields
+        self.constants = constants
 
     def __str__(self):
         return 'Class<%s>' % self.name
@@ -59,23 +65,33 @@ class JavaClass(object):
 
 
 class InstanceReference(BaseReference):
-    def __init__(self, cls, base_size, fields):
+    def __init__(self, id, cls, base_size, fields, bytes):
         super(InstanceReference, self).__init__(base_size, fields)
+        self.id = id
         self.cls = cls
+        self.bytes = bytes
 
     @classmethod
     def build_from_instance_dump(cls, strings, instance_cls, instance):
-        offset = 0
-        fields = {}
-        for name_id, tp in instance_cls.instance_fields:
-            if tp == 'OBJECT':
-                id = struct.unpack('>Q', instance.bytes[offset:offset + ID_SIZE])[0]
-                name = strings[name_id]
-                fields[name] = id
-                offset += ID_SIZE
-            else:
-                offset += TYPE_SIZES[tp]
-        return cls(instance_cls, len(instance.bytes), fields)
+        id = ''
+        try:
+            offset = 0
+            fields = {}
+            for name_id, tp in instance_cls.instance_fields:
+                if tp == 'OBJECT':
+                    id = struct.unpack('>Q', instance.bytes[offset:offset + ID_SIZE])[0]
+                    name = strings[name_id]
+                    fields[name] = id
+                    offset += ID_SIZE
+                else:
+                    offset += TYPE_SIZES[tp]
+            # if len(fields.keys()) != 0:
+            #     pdb.set_trace()
+            #     print()
+            return cls(id, instance_cls, len(instance.bytes), fields, instance.bytes)
+        except:
+            pdb.set_trace()
+            print("foo")
 
     def __str__(self):
         return 'Instance<%s>' % self.cls.name
@@ -85,11 +101,12 @@ class InstanceReference(BaseReference):
 
 
 class ObjectArrayReference(BaseReference):
-    def __init__(self, elements):
+    def __init__(self, id, elements):
         super(ObjectArrayReference, self).__init__(
             ARRAY_OVERHEAD + len(elements) * ID_SIZE,
             {i: el for i, el in enumerate(elements)}
         )
+        self.id = id
 
     def __str__(self):
         return 'Object Array Length %d' % len(self.children)
@@ -100,19 +117,32 @@ class ObjectArrayReference(BaseReference):
 
 
 class PrimitiveArrayReference(BaseReference):
-    def __init__(self, element_type, element_size, number_of_elements):
+    def __init__(self, id, element_type, element_size, number_of_elements, data):
         super(PrimitiveArrayReference, self).__init__(
             ARRAY_OVERHEAD + element_size * number_of_elements
         )
+        self.id = id
         self.element_type = element_type
         self.element_size = element_size
         self.number_of_elements = number_of_elements
+        self.data = data
 
     def __str__(self):
         return '%s Array Length %d' % (self.element_type, self.number_of_elements)
 
     def simple_name(self):
         return 'PArray{%s} len=%d' % (self.element_type, self.number_of_elements)
+
+    def raw_data(self):
+        return self.data
+
+    def hexdump_data(self):
+        hexdump(self.data)
+
+    def ascii_data(self):
+        # Ascii is [^\x00-\x7f], but printable is 0x20-0x7e
+        ascii_str = re.sub(r'[^\x0a\x0d\x20-\x7e]',r'',self.data)
+        return ascii_str
 
 
 class ReferenceBuilder(object):
@@ -147,15 +177,16 @@ class ReferenceBuilder(object):
         self.f.seek(heap_dump.start)
         p = HeapDumpParser(self.f, ID_SIZE)
 
+        # print("There are %d heapdump blocks" % len(p))
         for i, el in enumerate(p):
             if not i % 200000:
-                print i
+                print(i)
             if mx is not None and i > mx:
                 break
             if isinstance(el, ClassDump):
-                self.classes[el.id] = JavaClass(self.strings[self.class_name_ids[el.id]],
+                self.classes[el.id] = JavaClass(el.id, self.strings[self.class_name_ids[el.id]],
                                                 el.super_class_id,
-                                                el.instance_fields)
+                                                el.instance_fields, el.static_fields, el.constants_pool)
             elif isinstance(el, InstanceDump):
                 self.references[el.id] = InstanceReference.build_from_instance_dump(
                     self.strings,
@@ -163,6 +194,6 @@ class ReferenceBuilder(object):
                     el
                 )
             elif isinstance(el, ObjectArrayDump):
-                self.references[el.id] = ObjectArrayReference(el.elements)
+                self.references[el.id] = ObjectArrayReference(el.id, el.elements)
             elif isinstance(el, PrimitiveArrayDump):
-                self.references[el.id] = PrimitiveArrayReference(el.element_type, p.type_size(el.element_type), el.size)
+                self.references[el.id] = PrimitiveArrayReference(el.id, el.element_type, p.type_size(el.element_type), el.size, el.data)

@@ -2,6 +2,7 @@
 """
 
 import time
+import pdb
 from contextlib import contextmanager
 
 from .constants import TAGS
@@ -31,15 +32,73 @@ class BaseBlock(object):
 class GenericBlock(BaseBlock):
     pass
 
+class StackFrameBlock(BaseBlock):
+
+    def read_contents(self):
+        with self.parser.goto(self.start):
+            pdb.set_trace()
+            try:
+                s_id = self.parser.read_id()
+                contents = self.parser.f.read(self.length - self.parser.id_size)
+                contents = contents.decode('utf-8')
+            except:
+                # pdb.set_trace()
+                contents = str(contents)
+        self._id = s_id
+        self._contents = contents
+
+class StackTraceBlock(BaseBlock):
+    _id = None
+    _stack_frames = []
+
+    def read_contents(self):
+        with self.parser.goto(self.start):
+            try:
+                s_id = self.parser.read_id()
+                t_id = self.parser.i4()
+                numFrames = self.parser.i4()
+                stack_frames = []
+                for i in range(numFrames):
+                    # pdb.set_trace()
+                    val = self.parser.i4()
+                    stack_frames.append(val)
+                # contents = self.parser.f.read(self.length - self.parser.id_size)
+                # contents = contents.decode('utf-8')
+            except:
+                # pdb.set_trace()
+                contents = str(contents)
+        self._id = s_id
+        self._tid = t_id
+        self._nframes = numFrames
+        self._stack_frames = stack_frames
+
+    @property
+    def id(self):
+        if self._id is None:
+            self.read_contents()
+        return self._id
+
+    @property
+    def stack_frames(self):
+        if self._stack_frames is []:
+            self.read_contents()
+        return self._stack_frames
+
+    def __str__(self):
+        return '%s %d %r' % (self.tag_name, self.id, self.stack_frames)
 
 class StringBlock(BaseBlock):
     _id = _contents = None
 
     def read_contents(self):
         with self.parser.goto(self.start):
-            s_id = self.parser.read_id()
-            contents = self.parser.f.read(self.length - self.parser.id_size)
-            contents = contents.decode('utf-8')
+            try:
+                s_id = self.parser.read_id()
+                contents = self.parser.f.read(self.length - self.parser.id_size)
+                contents = contents.decode('utf-8')
+            except:
+                # pdb.set_trace()
+                contents = str(contents)
         self._id = s_id
         self._contents = contents
 
@@ -98,5 +157,7 @@ class HeapDump(BaseBlock):
 BLOCK_CLASSES_BY_TAG = {
     'STRING': StringBlock,
     'LOAD_CLASS': LoadClass,
-    'HEAP_DUMP': HeapDump
+    'HEAP_DUMP': HeapDump,
+    'STACK_FRAME': StackFrameBlock#,
+    # 'STACK_TRACE': StackTraceBlock
 }
