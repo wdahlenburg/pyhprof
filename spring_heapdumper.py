@@ -41,7 +41,7 @@ def main():
 
 	refs.build()
 
-	print("\n\nVariables:\n\n")
+	print("Variables:\n\n")
 
 	for i in refs.variables.keys():
 		key = i.decode("utf-8")
