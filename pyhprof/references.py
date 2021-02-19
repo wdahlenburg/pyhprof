@@ -5,7 +5,6 @@ size of objects they reference.
 
 import struct
 from collections import deque
-import pdb
 from hexdump import hexdump
 import re
 
@@ -146,12 +145,18 @@ class PrimitiveArrayReference(BaseReference):
 
 
 class ReferenceBuilder(object):
-    def __init__(self, f):
+    def __init__(self, f, flags={}):
         self.f = f
         self.strings = {}
         self.class_name_ids = {}
         self.classes = {}
         self.references = {}
+        self.variables = {}
+        self.variable_type = 0
+        if flags['type_one']:
+            self.variable_type = 1
+        elif flags['type_two']:
+            self.variable_type = 2
 
     def build(self, mx=None):
         heap_dump = self.read_hprof()
@@ -163,8 +168,8 @@ class ReferenceBuilder(object):
         return self.references.values()
 
     def read_hprof(self):
-        p = HProfParser(self.f)
-        for b in p:
+        self.p = HProfParser(self.f)
+        for b in self.p:
             if b.tag_name == 'HEAP_DUMP':
                 return b
             elif b.tag_name == 'STRING':
@@ -177,10 +182,36 @@ class ReferenceBuilder(object):
         self.f.seek(heap_dump.start)
         p = HeapDumpParser(self.f, ID_SIZE)
 
-        # print("There are %d heapdump blocks" % len(p))
+        references = []
         for i, el in enumerate(p):
-            if not i % 200000:
-                print(i)
+            references.append(el)
+
+        if self.variable_type == 0:
+            if '1.0.2' in self.p.format:
+                self.parse_type_two_references(heap_dump, mx, p, references)
+            elif '1.0.1' in self.p.format:
+                self.parse_type_one_references(heap_dump, mx, p, references)
+            else:
+                raise ValueError("Error: Unhandled HPROF format: " + self.p.format)
+        elif self.variable_type == 1:
+            self.parse_type_one_references(heap_dump, mx, p, references)
+        elif self.variable_type == 2:
+            self.parse_type_two_references(heap_dump, mx, p, references)
+
+    '''
+    
+    Type 1
+
+    The block structure is the following for variables:
+
+    InstanceDump -> Key as PrimitiveArrayDump -> InstanceDump -> Value as PrimitiveArrayDump
+
+    '''
+    def parse_type_one_references(self, heap_dump, mx, p, references):
+        last_item = None
+        for i in range(len(references)):
+            el = references[i]
+
             if mx is not None and i > mx:
                 break
             if isinstance(el, ClassDump):
@@ -197,3 +228,59 @@ class ReferenceBuilder(object):
                 self.references[el.id] = ObjectArrayReference(el.id, el.elements)
             elif isinstance(el, PrimitiveArrayDump):
                 self.references[el.id] = PrimitiveArrayReference(el.id, el.element_type, p.type_size(el.element_type), el.size, el.data)
+                if (type(references[i-3])== InstanceDump and
+                    type(references[i-2]) == PrimitiveArrayDump and
+                    type(references[i-1]) == InstanceDump):
+
+                    key = self.references[references[i-2].id].ascii_data()
+                    value = self.references[references[i].id].ascii_data()
+
+                    if key.strip() != b'' and value.strip() != b'':
+                        if last_item == None or last_item != key:
+                            last_item = value
+                            if key not in self.variables.keys():
+                                self.variables[key] = [value]
+                            else:
+                                self.variables[key].append(value)
+
+    '''
+    
+    Type 2
+
+    The block structure is the following for variables:
+
+    Key as PrimitiveArrayDump (bytes) -> Key as PrimitiveArrayDump (string) -> InstanceDump -> InstanceDump -> Value as PrimitiveArrayDump (bytes) -> Value as PrimitiveArrayDump (string)
+
+    '''
+    def parse_type_two_references(self, heap_dump, mx, p, references):
+        for i in range(len(references)):
+            el = references[i]
+            if mx is not None and i > mx:
+                break
+            if isinstance(el, ClassDump):
+                self.classes[el.id] = JavaClass(el.id, self.strings[self.class_name_ids[el.id]],
+                                                el.super_class_id,
+                                                el.instance_fields, el.static_fields, el.constants_pool)
+            elif isinstance(el, InstanceDump):
+                self.references[el.id] = InstanceReference.build_from_instance_dump(
+                    self.strings,
+                    self.classes[el.class_object_id],
+                    el
+                )
+            elif isinstance(el, ObjectArrayDump):
+                self.references[el.id] = ObjectArrayReference(el.id, el.elements)
+            elif isinstance(el, PrimitiveArrayDump):
+                self.references[el.id] = PrimitiveArrayReference(el.id, el.element_type, p.type_size(el.element_type), el.size, el.data)
+                if (type(references[i-1]) == PrimitiveArrayDump and
+                    type(references[i-2]) == InstanceDump and
+                    type(references[i-3]) == InstanceDump and
+                    type(references[i-4]) == PrimitiveArrayDump):
+
+                    key = self.references[references[i-4].id].ascii_data()
+                    value = self.references[references[i].id].ascii_data()
+
+                    if key.strip() != b'' and value.strip() != b'':
+                        if key not in self.variables.keys():
+                            self.variables[key] = [value]
+                        else:
+                            self.variables[key].append(value)
