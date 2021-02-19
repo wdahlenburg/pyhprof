@@ -1,5 +1,3 @@
-import pdb
-
 class BaseHeapDumpBlock(object):
     def __init__(self, id):
         self.id = id
@@ -108,13 +106,9 @@ class ClassDump(BaseHeapDumpBlock):
         reserved1 = p.read_id()
         reserved2 = p.read_id()
         instance_size = p.i4()
-        constants = [cls.read_constant(p) for _ in xrange(p.i2())]
-        static_fields = [cls.read_static_field(p) for _ in xrange(p.i2())]
-        instance_fields = [cls.read_instance_field(p) for _ in xrange(p.i2())]
-
-        if id == 3940593480 or id == 4019559632:
-            pdb.set_trace()
-            print("Block found")
+        constants = [cls.read_constant(p) for _ in range(p.i2())]
+        static_fields = [cls.read_static_field(p) for _ in range(p.i2())]
+        instance_fields = [cls.read_instance_field(p) for _ in range(p.i2())]
 
         return cls(id, stack_trace_serial_number, super_class_id, class_loader_id, signers_object_id,
                    protection_domain_object_id,
@@ -125,9 +119,6 @@ class ClassDump(BaseHeapDumpBlock):
         pool_index = p.i2()
         tp = p.read_value_type()
         value = p.read_value(tp)
-        if value == 3940593480 or value == 4019559632:
-            pdb.set_trace()
-            print("Block found")
         return [pool_index, tp, value]
 
     @classmethod
@@ -135,9 +126,6 @@ class ClassDump(BaseHeapDumpBlock):
         name_id = p.read_id()
         tp = p.read_value_type()
         value = p.read_value(tp)
-        if value == 3940593480 or value == 4019559632:
-            pdb.set_trace()
-            print("Block found")
         return [name_id, tp, value]
 
     @classmethod
@@ -177,19 +165,8 @@ class ObjectArrayDump(BaseHeapDumpBlock):
         stack_trace_serial_number = p.i4()
         n_elements = p.i4()
         array_class_object_id = p.read_id()
-        elements = []
-        for i in range(n_elements):
-            tid = p.read_id()
-            if tid == 3940593480 or tid == 4019559632:
-                pdb.set_trace()
-                print("Block found")
-            elements.append(tid)
+        elements = [p.read_id() for _ in range(n_elements)]
 
-        # elements = [p.read_id() for _ in xrange(n_elements)]
-        # for i in elements:
-        #     if id == 3940593480:
-        #         pdb.set_trace()
-        #         print("Block found")
         return cls(id, stack_trace_serial_number, array_class_object_id, elements)
 
 

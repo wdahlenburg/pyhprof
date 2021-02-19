@@ -7,7 +7,6 @@ from __future__ import division
 import os
 import struct
 from contextlib import contextmanager
-import pdb
 
 from .constants import TAGS, HEAP_DUMP_SUB_TAGS, OBJECT_TYPES, TYPE_SIZES
 from .blocks import BLOCK_CLASSES_BY_TAG, GenericBlock
@@ -117,10 +116,10 @@ class HProfParser(BaseParser):
         self.read_header()
 
     def read_header(self):
-        f = ""
+        f = b""
         while True:
             u1 = self.u1()
-            if not u1 != '\0':
+            if not u1 != b'\0':
                 break
             f += u1
         self.format = f
@@ -128,12 +127,8 @@ class HProfParser(BaseParser):
         self.start_time = self.i8()
 
     def read_next_block(self):
-        # pdb.set_trace()
         tag = ord(self.u1())
         tag_name = TAGS.get(tag, 'UNKOWN')
-        # if tag_name == 'HEAP_DUMP':
-        #     pdb.set_trace()
-        #     print("starting heapdump")
         record_time = self.i4()
         length = self.i4()
         start = self.f.tell()
@@ -162,18 +157,12 @@ class HeapDumpParser(BaseParser):
         assert self.length is None or self.position <= self.length
 
     def read(self, n):
-        # if self.f.tell() < 128506688 and (self.f.tell() + n) >= 128506688:
-        #     pdb.set_trace()
-        #     print("Identified Encryption block")
         content = super(HeapDumpParser, self).read(n)
         self.position += n
         self.check_position_in_bound()
         return content
 
     def seek(self, n):
-        # if self.f.tell() < 110763104 and (self.f.tell() + n) >= 110763104:
-        #     pdb.set_trace()
-        #     print("Identified Encryption block")
 
         super(HeapDumpParser, self).seek(n)
         self.position += n
@@ -184,20 +173,3 @@ class HeapDumpParser(BaseParser):
             return None
         tag = self.u1()
         return HEAP_BLOCK_CLASSES_BY_TAG[HEAP_DUMP_SUB_TAGS[ord(tag)]].parse(self)
-
-
-'''
-Starting at
-128731078
-128747999
-
-Size: 16921
-'''
-
-'''
-Starting at
-110757296
-110774212
-
-Size: 16916
-'''

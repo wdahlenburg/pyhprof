@@ -23,8 +23,8 @@ class BaseReference(object):
         self.children = children or {}
 
     def resolve_children(self, references):
-        for k, c in self.children.iteritems():
-            self.children[k] = references.get(c)
+        for k in self.children.keys():
+            self.children[k] = references.get(self.children[k])
 
     def bfs_transverse(self):
         seen = {self}
@@ -32,7 +32,7 @@ class BaseReference(object):
         while queue:
             n = queue.popleft()
             yield n
-            for child in n.children.itervalues():
+            for child in n.children.values():
                 if child is not None and child not in seen:
                     seen.add(n)
                     queue.append(child)
@@ -84,13 +84,9 @@ class InstanceReference(BaseReference):
                     offset += ID_SIZE
                 else:
                     offset += TYPE_SIZES[tp]
-            # if len(fields.keys()) != 0:
-            #     pdb.set_trace()
-            #     print()
             return cls(id, instance_cls, len(instance.bytes), fields, instance.bytes)
         except:
-            pdb.set_trace()
-            print("foo")
+            pass
 
     def __str__(self):
         return 'Instance<%s>' % self.cls.name
@@ -140,7 +136,7 @@ class PrimitiveArrayReference(BaseReference):
 
     def ascii_data(self):
         # Ascii is [^\x00-\x7f], but printable is 0x20-0x7e
-        ascii_str = re.sub(r'[^\x0a\x0d\x20-\x7e]',r'',self.data)
+        ascii_str = re.sub(b'[^\x0a\x0d\x20-\x7e]',b'',bytes(self.data))
         return ascii_str
 
 
@@ -187,9 +183,9 @@ class ReferenceBuilder(object):
             references.append(el)
 
         if self.variable_type == 0:
-            if '1.0.2' in self.p.format:
+            if b'1.0.2' in self.p.format:
                 self.parse_type_two_references(heap_dump, mx, p, references)
-            elif '1.0.1' in self.p.format:
+            elif b'1.0.1' in self.p.format:
                 self.parse_type_one_references(heap_dump, mx, p, references)
             else:
                 raise ValueError("Error: Unhandled HPROF format: " + self.p.format)
