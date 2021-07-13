@@ -201,6 +201,8 @@ class ReferenceBuilder(object):
     The block structure is the following for variables:
 
     InstanceDump -> Key as PrimitiveArrayDump -> InstanceDump -> Value as PrimitiveArrayDump
+    or
+    Key as PrimitiveArrayDump -> InstanceDump -> Value as PrimitiveArrayDump
 
     '''
     def parse_type_one_references(self, heap_dump, mx, p, references):
@@ -224,8 +226,7 @@ class ReferenceBuilder(object):
                 self.references[el.id] = ObjectArrayReference(el.id, el.elements)
             elif isinstance(el, PrimitiveArrayDump):
                 self.references[el.id] = PrimitiveArrayReference(el.id, el.element_type, p.type_size(el.element_type), el.size, el.data)
-                if (type(references[i-3])== InstanceDump and
-                    type(references[i-2]) == PrimitiveArrayDump and
+                if (type(references[i-2]) == PrimitiveArrayDump and
                     type(references[i-1]) == InstanceDump):
 
                     key = self.references[references[i-2].id].ascii_data()
