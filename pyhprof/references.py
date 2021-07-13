@@ -166,7 +166,7 @@ class ReferenceBuilder(object):
     def read_hprof(self):
         self.p = HProfParser(self.f)
         for b in self.p:
-            if b.tag_name == 'HEAP_DUMP':
+            if b.tag_name == 'HEAP_DUMP' or b.tag_name == 'HEAP_DUMP_SEGMENT':
                 return b
             elif b.tag_name == 'STRING':
                 self.strings[b.id] = b.contents

@@ -172,4 +172,6 @@ class HeapDumpParser(BaseParser):
         if self.position == self.length:
             return None
         tag = self.u1()
+        if HEAP_DUMP_SUB_TAGS[ord(tag)] == 'HEAP_DUMP_END':
+            return
         return HEAP_BLOCK_CLASSES_BY_TAG[HEAP_DUMP_SUB_TAGS[ord(tag)]].parse(self)
