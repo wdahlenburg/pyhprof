@@ -155,8 +155,8 @@ class ReferenceBuilder(object):
             self.variable_type = 2
 
     def build(self, mx=None):
-        heap_dump = self.read_hprof()
-        self.read_references(heap_dump, mx)
+        heap_dumps = self.read_hprof()
+        self.read_references(heap_dumps, mx)
         for c in self.classes.values():
             c.parent_class = self.references.get(c.parent_class_id)
         for r in self.references.values():
@@ -165,34 +165,40 @@ class ReferenceBuilder(object):
 
     def read_hprof(self):
         self.p = HProfParser(self.f)
+        heapdump_blocks = []
         for b in self.p:
             if b.tag_name == 'HEAP_DUMP' or b.tag_name == 'HEAP_DUMP_SEGMENT':
-                return b
+                heapdump_blocks.append(b)
             elif b.tag_name == 'STRING':
                 self.strings[b.id] = b.contents
             elif b.tag_name == 'LOAD_CLASS':
                 self.class_name_ids[b.class_id] = b.class_name_id
-        raise RuntimeError("No HEAP_DUMP block")
+        return heapdump_blocks
 
-    def read_references(self, heap_dump, mx=None):
-        self.f.seek(heap_dump.start)
-        p = HeapDumpParser(self.f, ID_SIZE)
+    def read_references(self, heap_dumps, mx=None):
+        blockCount = 0
+        for block in heap_dumps:
+            # print("Inspecting block %d" % blockCount)
+            self.f.seek(block.start)
+            p = HeapDumpParser(self.f, ID_SIZE, block.length)
 
-        references = []
-        for i, el in enumerate(p):
-            references.append(el)
+            references = []
+            for i, el in enumerate(p):
+                references.append(el)
 
-        if self.variable_type == 0:
-            if b'1.0.2' in self.p.format:
-                self.parse_type_two_references(heap_dump, mx, p, references)
-            elif b'1.0.1' in self.p.format:
-                self.parse_type_one_references(heap_dump, mx, p, references)
-            else:
-                raise ValueError("Error: Unhandled HPROF format: " + self.p.format)
-        elif self.variable_type == 1:
-            self.parse_type_one_references(heap_dump, mx, p, references)
-        elif self.variable_type == 2:
-            self.parse_type_two_references(heap_dump, mx, p, references)
+            if self.variable_type == 0:
+                if b'1.0.2' in self.p.format:
+                    self.parse_type_two_references(block, mx, p, references)
+                elif b'1.0.1' in self.p.format:
+                    self.parse_type_one_references(block, mx, p, references)
+                else:
+                    raise ValueError("Error: Unhandled HPROF format: " + self.p.format)
+            elif self.variable_type == 1:
+                self.parse_type_one_references(block, mx, p, references)
+            elif self.variable_type == 2:
+                self.parse_type_two_references(block, mx, p, references)
+
+            blockCount += 1
 
     '''
     
@@ -209,7 +215,6 @@ class ReferenceBuilder(object):
         last_item = None
         for i in range(len(references)):
             el = references[i]
-
             if mx is not None and i > mx:
                 break
             if isinstance(el, ClassDump):
@@ -226,19 +231,20 @@ class ReferenceBuilder(object):
                 self.references[el.id] = ObjectArrayReference(el.id, el.elements)
             elif isinstance(el, PrimitiveArrayDump):
                 self.references[el.id] = PrimitiveArrayReference(el.id, el.element_type, p.type_size(el.element_type), el.size, el.data)
-                if (type(references[i-2]) == PrimitiveArrayDump and
-                    type(references[i-1]) == InstanceDump):
+                if i >= 2:
+                    if (type(references[i-2]) == PrimitiveArrayDump and
+                        type(references[i-1]) == InstanceDump):
 
-                    key = self.references[references[i-2].id].ascii_data()
-                    value = self.references[references[i].id].ascii_data()
+                        key = self.references[references[i-2].id].ascii_data()
+                        value = self.references[references[i].id].ascii_data()
 
-                    if key.strip() != b'' and value.strip() != b'':
-                        if last_item == None or last_item != key:
-                            last_item = value
-                            if key not in self.variables.keys():
-                                self.variables[key] = [value]
-                            else:
-                                self.variables[key].append(value)
+                        if key.strip() != b'' and value.strip() != b'':
+                            if last_item == None or last_item != key:
+                                last_item = value
+                                if key not in self.variables.keys():
+                                    self.variables[key] = [value]
+                                else:
+                                    self.variables[key].append(value)
 
     '''
     
@@ -268,16 +274,16 @@ class ReferenceBuilder(object):
                 self.references[el.id] = ObjectArrayReference(el.id, el.elements)
             elif isinstance(el, PrimitiveArrayDump):
                 self.references[el.id] = PrimitiveArrayReference(el.id, el.element_type, p.type_size(el.element_type), el.size, el.data)
-                if (type(references[i-1]) == PrimitiveArrayDump and
-                    type(references[i-2]) == InstanceDump and
-                    type(references[i-3]) == InstanceDump and
-                    type(references[i-4]) == PrimitiveArrayDump):
+                if i >= 4:
+                    if(type(references[i-1]) == InstanceDump and
+                        type(references[i-2]) == InstanceDump and
+                        type(references[i-3]) == PrimitiveArrayDump):
 
-                    key = self.references[references[i-4].id].ascii_data()
-                    value = self.references[references[i].id].ascii_data()
+                        key = self.references[references[i-3].id].ascii_data()
+                        value = self.references[references[i].id].ascii_data()
 
-                    if key.strip() != b'' and value.strip() != b'':
-                        if key not in self.variables.keys():
-                            self.variables[key] = [value]
-                        else:
-                            self.variables[key].append(value)
+                        if key.strip() != b'' and value.strip() != b'':
+                            if key not in self.variables.keys():
+                                self.variables[key] = [value]
+                            else:
+                                self.variables[key].append(value)
