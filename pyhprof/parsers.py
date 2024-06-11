@@ -12,7 +12,6 @@ from .constants import TAGS, HEAP_DUMP_SUB_TAGS, OBJECT_TYPES, TYPE_SIZES
 from .blocks import BLOCK_CLASSES_BY_TAG, GenericBlock
 from .heap_blocks import HEAP_BLOCK_CLASSES_BY_TAG
 
-
 class BaseParser(object):
 
     def __init__(self, f):
@@ -163,15 +162,16 @@ class HeapDumpParser(BaseParser):
         return content
 
     def seek(self, n):
-
         super(HeapDumpParser, self).seek(n)
         self.position += n
         self.check_position_in_bound()
 
     def read_next_block(self):
         if self.position == self.length:
-            return None
+            return
         tag = self.u1()
+        if ord(tag) not in HEAP_DUMP_SUB_TAGS.keys():
+            return
         if HEAP_DUMP_SUB_TAGS[ord(tag)] == 'HEAP_DUMP_END':
             return
         return HEAP_BLOCK_CLASSES_BY_TAG[HEAP_DUMP_SUB_TAGS[ord(tag)]].parse(self)
